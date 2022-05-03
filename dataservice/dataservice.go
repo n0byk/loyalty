@@ -20,9 +20,5 @@ type Repository interface {
 	PostAccrue(ctx context.Context, orderNumber string, sum float32) (string, error)
 	GetNewOrder(ctx context.Context) (entity.OrderIDNumber, string, error)
 	SetOrderStatus(ctx context.Context, OrderID string, status string) error
-	// GetURL(ctx context.Context, key string) (string, error)
-	// SetUserData(ctx context.Context, key, url, user string) error
-	// GetUserData(ctx context.Context, user string) (string, error)
 	DBPing() error
-	// BulkDelete(ctx context.Context, urls []string, userID string) error
 }
