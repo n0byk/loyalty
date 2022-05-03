@@ -2,7 +2,6 @@ package user
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -17,7 +16,6 @@ func PostWithdraw(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1024))
 	if err != nil {
-		fmt.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -25,11 +23,9 @@ func PostWithdraw(w http.ResponseWriter, r *http.Request) {
 	var UserWithdraw request.UserWithdraw
 
 	if err := json.Unmarshal(body, &UserWithdraw); err != nil {
-		fmt.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	fmt.Println("UserWithdraw", UserWithdraw)
 	_, _ = config.App.Storage.UpsertOrder(r.Context(), UserWithdraw.Order, middleware.GetTokenClaims(r))
 
 	errCode, err := config.App.Storage.PostWithdraw(r.Context(), UserWithdraw.Order, float32(UserWithdraw.Sum))

@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -13,11 +12,9 @@ import (
 func GetBalance(w http.ResponseWriter, r *http.Request) {
 	balance, err := config.App.Storage.GetBalance(r.Context(), middleware.GetTokenClaims(r))
 	if err != nil {
-		fmt.Println(err)
 		errors.HTTPErrorGenerate("InternalServerError", w)
 		return
 	}
-	fmt.Println("GetBalance", balance)
 
 	if balance.Current < 0 {
 		w.WriteHeader(http.StatusPaymentRequired)
