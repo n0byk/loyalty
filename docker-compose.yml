@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  loyalty_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    volumes:
+      - './src:/usr/src/app/src'
+    ports:
+      - 3001:3333 
+    networks:
+      - loyalty
+    depends_on:
+      - loyalty_postgres 
+
+  loyalty_postgres:
+    image: postgres:14.2-alpine
+    ports:
+      - 5432:5432
+    logging:
+      driver: none
+    environment:
+      - POSTGRES_PASSWORD=loyalty
+      - POSTGRES_USER=loyalty
+      - POSTGRES_DB=loyalty
+    networks:
+      - loyalty
+ 
+networks:
+  loyalty:
+    name: loyalty
+    driver: bridge
