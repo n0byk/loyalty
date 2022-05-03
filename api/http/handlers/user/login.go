@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	"github.com/n0byk/loyalty/api/http/errors"
+	"github.com/n0byk/loyalty/api/http/middleware"
+	"github.com/n0byk/loyalty/api/http/request"
 	"github.com/n0byk/loyalty/config"
-	"github.com/n0byk/loyalty/dataservice/models/request"
 	"github.com/n0byk/loyalty/helpers"
-	"github.com/n0byk/loyalty/helpers/jwtauth"
 )
 
 func UserLogin(w http.ResponseWriter, r *http.Request) {
@@ -27,14 +27,14 @@ func UserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := config.App.Storage.UserLogin(r.Context(), userLogin.Login, userLogin.Password)
+	user, errCode, err := config.App.Storage.UserLogin(r.Context(), userLogin.Login, userLogin.Password)
 	if err != nil {
-		errors.HTTPErrorGenerate(err, w)
+		errors.HTTPErrorGenerate(errCode, w)
 		return
 	}
 
 	if helpers.CheckPasswordHash(user.UserPassword, userLogin.Password, user.UserSalt) {
-		tokenString := jwtauth.MakeToken(user.UserID)
+		tokenString := middleware.MakeToken(user.UserID)
 
 		w.Header().Set("Authorization", "Bearer "+tokenString)
 		w.Write([]byte("Bearer " + tokenString))

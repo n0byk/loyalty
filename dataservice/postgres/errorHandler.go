@@ -4,12 +4,21 @@ import (
 	"errors"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgerrcode"
 )
 
 func errorDecode(err error) string {
 	var pgErr *pgconn.PgError
+
 	if errors.As(err, &pgErr) {
-		return pgErr.Code
+		switch pgErr.Code {
+		case pgerrcode.UniqueViolation:
+			return "UniqueViolation"
+		default:
+			return "db error"
+		}
+
 	}
-	return "010101"
+
+	return "unknown error"
 }

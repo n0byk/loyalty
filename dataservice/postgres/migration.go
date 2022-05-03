@@ -10,17 +10,17 @@ import (
 )
 
 func Migration(logger *zap.Logger, dsn string) {
-	m, err := migrate.New("file://dataservice/migrations", dsn)
+	m, err := migrate.New("file://dataservice/postgres/migrations", dsn)
 	if err != nil {
-		logger.Error("Error migrations add ...", zap.Error(err))
+		logger.Error("Migrations", zap.Error(err))
 		os.Exit(1)
 	}
 
 	if err := m.Up(); err != nil && err.Error() != "no change" {
-		logger.Error("Error migrations add", zap.Error(err))
+		logger.Error("Migrations up error", zap.Error(err))
 		os.Exit(1)
 	}
 
-	logger.Info("DB migration - done")
+	logger.Info("Migrations - done")
 
 }

@@ -2,16 +2,19 @@ package errors
 
 import (
 	"net/http"
-
-	"github.com/jackc/pgerrcode"
 )
 
-func HTTPErrorGenerate(err error, w http.ResponseWriter) {
-	if err.Error() == pgerrcode.UniqueViolation {
+func HTTPErrorGenerate(err string, w http.ResponseWriter) {
+	switch err {
+	case "UniqueViolation":
 		w.WriteHeader(http.StatusConflict)
 		w.Write([]byte("UniqueViolation"))
 		return
+
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("InternalServerError"))
+
 	}
-	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte("InternalServerError"))
+
 }

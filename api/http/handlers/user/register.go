@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/n0byk/loyalty/api/http/errors"
+	"github.com/n0byk/loyalty/api/http/middleware"
+	"github.com/n0byk/loyalty/api/http/request"
 	"github.com/n0byk/loyalty/config"
-	"github.com/n0byk/loyalty/dataservice/models/request"
 	"github.com/n0byk/loyalty/helpers"
-	"github.com/n0byk/loyalty/helpers/jwtauth"
 )
 
 func UserRegister(w http.ResponseWriter, r *http.Request) {
@@ -34,12 +34,12 @@ func UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := config.App.Storage.UserRegister(r.Context(), userRegistration.Login, password, salt)
+	userID, errCode, err := config.App.Storage.UserRegister(r.Context(), userRegistration.Login, password, salt)
 	if err != nil {
-		errors.HTTPErrorGenerate(err, w)
+		errors.HTTPErrorGenerate(errCode, w)
 		return
 	}
-	tokenString := jwtauth.MakeToken(userID.String())
+	tokenString := middleware.MakeToken(userID.String())
 
 	w.Header().Set("Authorization", "Bearer "+tokenString)
 	w.Write([]byte("Bearer " + tokenString))
