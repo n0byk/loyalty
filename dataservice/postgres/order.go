@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
+	"github.com/n0byk/loyalty/config"
 	"github.com/n0byk/loyalty/dataservice/models/entity"
 
 	"github.com/jackc/pgx/v4"
@@ -13,12 +13,11 @@ import (
 )
 
 func (repository *postgreRepository) UpsertOrder(ctx context.Context, orderNumber string, userID string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
-
 	_, err := repository.connection.Query(ctx, `insert into order_catalog (user_id, order_number, order_state) values ($1, $2, 'PROCESSING') on conflict do nothing returning user_id;`, userID, orderNumber)
 	if err != nil {
-		repository.logger.Error("SetOrder insert error", zap.Error(err))
+		repository.logger.Error("UpsertOrder error", zap.Error(err))
 		errorCode := errorDecode(err)
 		return errorCode, errors.New(errorCode)
 	}
@@ -26,7 +25,7 @@ func (repository *postgreRepository) UpsertOrder(ctx context.Context, orderNumbe
 }
 
 func (repository *postgreRepository) SetOrder(ctx context.Context, orderNumber string, userID string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 
 	err := repository.connection.QueryRow(ctx, `insert into order_catalog (user_id, order_number, order_state) values ($1, $2, 'PROCESSING') returning user_id;`, userID, orderNumber).Scan(&userID)
@@ -39,7 +38,7 @@ func (repository *postgreRepository) SetOrder(ctx context.Context, orderNumber s
 }
 
 func (repository *postgreRepository) CheckOrder(ctx context.Context, orderNumber string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 	var userID string
 	err := repository.connection.QueryRow(ctx, `select user_id from order_catalog where order_number = $1;`, orderNumber).Scan(&userID)
@@ -53,7 +52,7 @@ func (repository *postgreRepository) CheckOrder(ctx context.Context, orderNumber
 }
 
 func (repository *postgreRepository) GetOrder(ctx context.Context, userID string) ([]entity.Order, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 
 	var ordersSlice []entity.Order
@@ -61,7 +60,7 @@ func (repository *postgreRepository) GetOrder(ctx context.Context, userID string
 	orders, err := repository.connection.Query(ctx, `select oc.order_number, oc.order_state, oc.update_time, coalesce(bc.accrue, 0) as accrual from order_catalog oc left join balance_catalog bc on bc.order_number = oc.order_number where user_id = $1;`, userID)
 	if err != nil {
 		errorCode := errorDecode(err)
-		repository.logger.Error("CheckOrder error", zap.Error(err))
+		repository.logger.Error("GetOrder error", zap.Error(err))
 		return ordersSlice, errors.New(errorCode)
 	}
 
@@ -69,32 +68,48 @@ func (repository *postgreRepository) GetOrder(ctx context.Context, userID string
 		var r entity.Order
 		err := orders.Scan(&r.OrderNumber, &r.OrderState, &r.UpdateTime, &r.Accrual)
 		if err != nil {
-			log.Fatal(err)
+			repository.logger.Error("GetOrder error", zap.Error(err))
+
+			return nil, err
 		}
 		ordersSlice = append(ordersSlice, r)
 	}
 	if err := orders.Err(); err != nil {
-		log.Fatal(err)
+		repository.logger.Error("GetOrder error", zap.Error(err))
+
+		return nil, err
 	}
 	return ordersSlice, nil
 }
 
-func (repository *postgreRepository) GetNewOrder(ctx context.Context) (entity.OrderIDNumber, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+func (repository *postgreRepository) GetNewOrder(ctx context.Context) ([]entity.OrderIDNumber, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
-	var order entity.OrderIDNumber
-	err := repository.connection.QueryRow(ctx, `SELECT order_id, order_number FROM public.order_catalog WHERE order_state in('PROCESSING', 'NEW') ORDER BY random() LIMIT 1;`).Scan(&order.OrderID, &order.OrderNumber)
+	var orders []entity.OrderIDNumber
+
+	rows, err := repository.connection.Query(ctx, `SELECT order_id, order_number FROM public.order_catalog WHERE order_state in('PROCESSING', 'NEW');`)
 
 	if err != nil && err != pgx.ErrNoRows {
 		repository.logger.Error("GetNewOrder error", zap.Error(err))
 		errorCode := errorDecode(err)
-		return order, errorCode, errors.New(errorCode)
+		return orders, errorCode, errors.New(errorCode)
 	}
-	return order, "", nil
+
+	for rows.Next() {
+		var r entity.OrderIDNumber
+		err := rows.Scan(&r.OrderID, &r.OrderNumber)
+		if err != nil {
+			repository.logger.Error("GetWithdraws error", zap.Error(err))
+			return orders, err.Error(), nil
+		}
+		orders = append(orders, r)
+	}
+
+	return orders, "", nil
 }
 
 func (repository *postgreRepository) SetOrderStatus(ctx context.Context, OrderID string, status string) error {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 	_, err := repository.connection.Query(ctx, `update order_catalog set order_state = $1 where order_id = $2;`, status, OrderID)
 	if err != nil {
@@ -106,12 +121,12 @@ func (repository *postgreRepository) SetOrderStatus(ctx context.Context, OrderID
 }
 
 func (repository *postgreRepository) PostWithdraw(ctx context.Context, orderNumber string, sum float32) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 
 	err := repository.connection.QueryRow(ctx, `insert into balance_catalog (order_number, withdraw) values ($1, $2) returning order_number;`, orderNumber, sum).Scan(&orderNumber)
 	if err != nil {
-		repository.logger.Error("Withdraw insert error", zap.Error(err))
+		repository.logger.Error("PostWithdraw error", zap.Error(err))
 		errorCode := errorDecode(err)
 		return errorCode, errors.New(errorCode)
 	}
@@ -124,7 +139,7 @@ func (repository *postgreRepository) PostAccrue(ctx context.Context, orderNumber
 
 	err := repository.connection.QueryRow(ctx, `insert into balance_catalog (order_number, accrue) values ($1, $2) returning order_number;`, orderNumber, sum).Scan(&orderNumber)
 	if err != nil {
-		repository.logger.Error("Withdraw insert error", zap.Error(err))
+		repository.logger.Error("PostAccrue error", zap.Error(err))
 		errorCode := errorDecode(err)
 		return errorCode, errors.New(errorCode)
 	}
@@ -140,7 +155,7 @@ func (repository *postgreRepository) GetWithdraws(ctx context.Context, userID st
 	orders, err := repository.connection.Query(ctx, `select bc.order_number, bc.withdraw as withdraw, bc.update_time from balance_catalog bc left join order_catalog oc on oc.order_number = bc.order_number where oc.user_id = $1 and bc.withdraw is not null;`, userID)
 	if err != nil {
 		errorCode := errorDecode(err)
-		repository.logger.Error("CheckOrder error", zap.Error(err))
+		repository.logger.Error("GetWithdraws error", zap.Error(err))
 		return ordersSlice, errors.New(errorCode)
 	}
 
@@ -148,12 +163,14 @@ func (repository *postgreRepository) GetWithdraws(ctx context.Context, userID st
 		var r entity.OrderWithdrawals
 		err := orders.Scan(&r.OrderID, &r.OrderSum, &r.ProcessedAt)
 		if err != nil {
-			log.Fatal(err)
+			repository.logger.Error("GetWithdraws error", zap.Error(err))
+			return nil, err
 		}
 		ordersSlice = append(ordersSlice, r)
 	}
 	if err := orders.Err(); err != nil {
-		log.Fatal(err)
+		repository.logger.Error("GetWithdraws error", zap.Error(err))
+		return nil, err
 	}
 	return ordersSlice, nil
 }

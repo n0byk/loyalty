@@ -3,15 +3,15 @@ package postgres
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/n0byk/loyalty/config"
 	"github.com/n0byk/loyalty/dataservice/models/entity"
 	"go.uber.org/zap"
 )
 
 func (repository *postgreRepository) UserRegister(ctx context.Context, login, password, salt string) (uuid.UUID, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 	var userID uuid.UUID
 
@@ -25,7 +25,7 @@ func (repository *postgreRepository) UserRegister(ctx context.Context, login, pa
 }
 
 func (repository *postgreRepository) UserLogin(ctx context.Context, login, password string) (entity.User, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, config.AppConfig.DefaultCtxTimeout)
 	defer cancel()
 	var user entity.User
 

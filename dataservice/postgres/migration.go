@@ -10,7 +10,7 @@ import (
 )
 
 func Migration(logger *zap.Logger, dsn string) {
-	m, err := migrate.New("file://dataservice/postgres/migrations", dsn)
+	m, err := migrate.New("file://../../dataservice/postgres/migrations", dsn)
 	if err != nil {
 		logger.Error("Migrations", zap.Error(err))
 		os.Exit(1)

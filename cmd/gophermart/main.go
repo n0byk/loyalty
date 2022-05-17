@@ -29,11 +29,14 @@ func main() {
 
 	config.App = config.Service{Storage: storage, Logger: logger}
 
+	// for i := 0; i < 250; i++ {
 	go worker.AccrualAskWorker()
+
+	// }
 
 	logger.Info("ListenAndServe", zap.String("run_address", appConfig.ServerAddress))
 	if err := http.ListenAndServe(appConfig.ServerAddress, endpoints.InitEndpoints(logger)); err != nil {
-		logger.Error("ListenAndServe", zap.Error(err))
+		logger.Fatal("ListenAndServe", zap.Error(err))
 		os.Exit(1)
 	}
 

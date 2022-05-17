@@ -26,9 +26,12 @@ func PostWithdraw(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	_, _ = config.App.Storage.UpsertOrder(r.Context(), UserWithdraw.Order, middleware.GetTokenClaims(r))
 
-	errCode, err := config.App.Storage.PostWithdraw(r.Context(), UserWithdraw.Order, float32(UserWithdraw.Sum))
+	ctx := r.Context()
+
+	_, _ = config.App.Storage.UpsertOrder(ctx, UserWithdraw.Order, middleware.GetTokenClaims(r))
+
+	errCode, err := config.App.Storage.PostWithdraw(ctx, UserWithdraw.Order, float32(UserWithdraw.Sum))
 	if err != nil {
 		errors.HTTPErrorGenerate(errCode, w)
 		return

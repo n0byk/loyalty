@@ -18,31 +18,32 @@ func SetOrders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if validator.ValidateLuhn(string(order)) {
-		userID := middleware.GetTokenClaims(r)
 
-		orderOwner, err := config.App.Storage.CheckOrder(r.Context(), string(order))
-		if err != nil {
-			errors.HTTPErrorGenerate("InternalError", w)
-			return
-		}
-
-		if userID == orderOwner {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(orderOwner))
-			return
-		}
-
-		responce, err := config.App.Storage.SetOrder(r.Context(), string(order), userID)
-		if err != nil {
-			errors.HTTPErrorGenerate(responce, w)
-			return
-		}
-		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte(responce))
+	if !validator.ValidateLuhn(string(order)) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
-
 	}
-	w.WriteHeader(http.StatusUnprocessableEntity)
+
+	userID := middleware.GetTokenClaims(r)
+
+	orderOwner, err := config.App.Storage.CheckOrder(r.Context(), string(order))
+	if err != nil {
+		errors.HTTPErrorGenerate("InternalError", w)
+		return
+	}
+
+	if userID == orderOwner {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(orderOwner))
+		return
+	}
+
+	responce, err := config.App.Storage.SetOrder(r.Context(), string(order), userID)
+	if err != nil {
+		errors.HTTPErrorGenerate(responce, w)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	w.Write([]byte(responce))
 
 }
